@@ -1,13 +1,18 @@
 from flask import Flask
-from flask import request
+from flask import request, jsonify
 import cv2
 import numpy as np
 from datetime import datetime
 
 app = Flask(__name__)
 
-@app.route('/', methods=['POST'])
-def hello():
+@app.route('/diary', methods=['POST'])
+def createDiary():
+    contents = request.json.get('contents')
+    return contents
+
+@app.route('/result', methods=['POST'])
+def createLinePicture():
     file = request.files['file']
     file_name = file.filename.split('.')[0]
     image_type = file.filename.split('.')[-1]
