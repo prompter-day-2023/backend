@@ -14,6 +14,7 @@ app = Flask(__name__)
 
 openai.api_key = os.getenv('GPT_API_KEY')
 bucket_name = os.getenv('BUCKET_NAME')
+bucket_url_prefix = os.getenv('BUCKET_URL_PREFIX')
 
 @app.route('/diary', methods=['POST'])
 def create_diary():
@@ -43,13 +44,14 @@ def upload_s3():
     file_type = file.filename.split('.')[-1]
 
     # 사진을 s3에 저장
+    # dalle 사진의 경우 result 롤더, 라인드로잉 사진의 경우 line 폴더 사용
     s3.put_object(
             Body = file,
             Bucket = bucket_name,
             Key = f'result/{file_name}.{file_type}',
             ContentType = f'image/{file_type}'
     )
-    return 'success'
+    return f'{bucket_url_prefix}/result/{file_name}.{file_type}'
 
 def create_line_picture(image):
     # TODO: s3 url을 다운받도록 수정
