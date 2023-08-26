@@ -2,14 +2,38 @@ from flask import Flask
 from flask import request, jsonify
 import cv2
 import numpy as np
+import openai
+import os
 from datetime import datetime
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
+
+openai.api_key = os.getenv('GPT_API_KEY')
 
 @app.route('/diary', methods=['POST'])
 def createDiary():
     contents = request.json.get('contents')
-    return contents
+
+    # TODO: GPT 요약 프롬프트 연결하기
+    response = openai.Completion.create(
+        model = 'text-davinci-003',   # openai에서 제공하는 모델 입력 (GPT-3.5)
+        prompt = '오늘은 친구들과 떡볶이를 먹었어',  # 원하는 실행어 입력
+        temperature = 0,
+        max_tokens = 100,   # 입력 + 출력 값으로 잡을 수 있는 max_tokens 값
+        top_p = 1,
+        frequency_penalty = 0.0,
+        presence_penalty = 0.0,
+        stop = ['\n']   # stop 지점 설정
+    )
+    # TODO: DALLE 연결하기
+
+    print(response);
+
+    return {'response': response.choices[0].text.strip()}
+
 
 @app.route('/result', methods=['POST'])
 def createLinePicture():
