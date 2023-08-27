@@ -12,7 +12,7 @@ def get_images_from_dalle(gpt_result):
     # Dall-E 이미지 생성
     response = openai.Image.create(
         prompt = dalle_prompt,
-        n = 1,    # 한 번에 생성할 이미지 개수 (test에는 1개로 진행합니다.)
+        n = 4,    # 한 번에 생성할 이미지 개수 (test에는 1개로 진행합니다.)
         size = '1024x1024'    # 256x256, 512x512, or 1024x1024 가능
     )
 
