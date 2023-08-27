@@ -3,13 +3,80 @@ from flask import request, jsonify
 import cv2
 import numpy as np
 from datetime import datetime
+import requests
+import openai
+import os
 
 app = Flask(__name__)
 
 @app.route('/diary', methods=['POST'])
-def createDiary():
-    contents = request.json.get('contents')
-    return contents
+def getImages():
+    # 문자열->문자열 배열에 넣어주는 처리
+    message = request.form['text']
+    message = message.split('\n')
+
+    # dalle_prompt = translateGptPrompt(message)
+    dalle_prompt += ', vector illustration'
+
+    # Dall-E 이미지 생성
+    openai.api_key = os.getenv('GPT_API_KEY')
+    response = openai.Image.create(
+        prompt=dalle_prompt,
+        n=3,
+        size="1024x1024"    # 256x256, 512x512, or 1024x1024 가능
+    )
+
+    image_url = {"imageUrl": []}
+    idx = 0
+    for list in response['data']:
+        image_url["imageUrl"].append(list['url'])
+        idx = idx + 1
+
+    print(image_url["imageUrl"])
+
+    return { "status": 200, "message": 'OK', "data": image_url }
+
+
+# 한글 프롬프트를 영어 프롬프트로 번역, Dall-E 프롬프트에 맞게 가공하는 함수
+def translateGptPrompt(message):
+    url_for_deepl = 'https://api-free.deepl.com/v2/translate'
+    payload = {
+        'text': message,
+        'source_lang': 'KO',
+        'target_lang': 'EN'
+    }
+
+    #  todo: .env에 key 보관
+    headers = {
+        "content-type": "application/json",
+        "Authorization": os.getenv('DEEPL_API_KEY')
+    } 
+
+    response = requests.post(url_for_deepl, json=payload, headers=headers)
+    if response.status_code != 200:
+        return { "status": 557, "message": '번역 생성에 실패하였습니다.' }
+    data = response.json()
+
+    print(data)
+
+    idx = 0
+    translate_result = ''
+    line_length = len(data['translations'])
+
+    for one_line in data['translations']:
+        text = one_line['text']
+        content_start_idx = text.find(":") + 2
+        content = text[content_start_idx:]
+        # print(content)
+        if idx == line_length - 1:
+            translate_result += content[:-1]
+        else:
+            translate_result += content + ", "
+        idx = idx + 1
+
+    return translate_result
+    
+
 
 @app.route('/result', methods=['POST'])
 def createLinePicture():
@@ -42,6 +109,8 @@ def createLinePicture():
     cv2.imwrite(new_file_name, filled_image)
 
     return { "status": 200, "message": 'OK' }
+
+
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
