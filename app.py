@@ -37,8 +37,9 @@ def create_diary():
 
     image_url_list = []
     for url in dalle_url_list:    
-        print(url)   
+        print(url)
         download_image = wget.download(url)
+        image_file = cv2.imread(download_image)
 
         split_url = url.split('/')[6]
         image_full_name = split_url.split('?')[0]
@@ -46,8 +47,10 @@ def create_diary():
         image_type = image_full_name.split('.')[-1]
         print(image_full_name)
 
+        data = cv2.imencode(f'.{image_type}', image_file)[1].tobytes()
+
         s3.put_object(
-            Body = download_image,
+            Body = data,
             Bucket = bucket_name,
             Key = f'result/{image_name}.{image_type}',
             ContentType = f'image/{image_type}'
