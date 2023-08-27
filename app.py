@@ -7,6 +7,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 import requests
 from .s3_bucket import s3
+import wget
 
 load_dotenv()
 
@@ -19,7 +20,7 @@ bucket_url_prefix = os.getenv('BUCKET_URL_PREFIX')
 @app.route('/diary', methods=['POST'])
 def create_diary():
     contents = request.json.get('contents')
-    command = f'Based on the diary contents written by the child, please write the diary contents and situation in English according to the format below. The purpose is to create an image by putting a prompt into the generative AI.\n\nEmotion:\nSubject:\nPicture color:\nOne line summary:\n\nThe diary contains the following.\n{contents}'
+    command = f'Based on the diary contents written by the child, please write the diary contents and situation in English according to the format below. The purpose is to create an image by putting a prompt into the generative AI.\n\nEmotion:\nCharacters:\nPicture color:\nOne line summary:\n\nThe diary contains the following.\n{contents}'
 
     response = openai.Completion.create(
         model = 'text-davinci-003',   # openai에서 제공하는 모델 입력 (GPT-3.5)
@@ -30,11 +31,33 @@ def create_diary():
         presence_penalty = 0.0
     )
 
-    dalle_prompt = response.choices[0].text.strip()
+    gpt_result = response.choices[0].text.strip()
+    dalle_url_list = getImages(gpt_result)
+    print('img_url: ', dalle_url_list)
 
-    # TODO: DALLE 연결하기
+    image_url_list = []
+    for url in dalle_url_list:    
+        print(url)   
+        download_image = wget.download(url)
 
-    return { "response": response.choices[0].text.strip() }
+        split_url = url.split('/')[6]
+        image_full_name = split_url.split('?')[0]
+        image_name = image_full_name.split('.')[0]
+        image_type = image_full_name.split('.')[-1]
+        print(image_full_name)
+
+        s3.put_object(
+            Body = download_image,
+            Bucket = bucket_name,
+            Key = f'result/{image_name}.{image_type}',
+            ContentType = f'image/{image_type}'
+        )   
+        print(f'{bucket_url_prefix}/result/{image_name}.{image_type}')
+        image_url_list.append(f'{bucket_url_prefix}/result/{image_name}.{image_type}')
+
+    
+    return { "response": image_url_list }
+
 
 # S3 테스트 코드입니다. 향후 코드 작성 시 참고해주세요.
 @app.route('/s3-test')
@@ -84,19 +107,15 @@ def create_line_picture(image):
 
     byte_image_to_s3 = cv2.imencode(image_type, filled_image)[1].tobytes()
 
-def getImages():
-    # 문자열->문자열 배열에 넣어주는 처리
-    message = request.form['text']
-    message = message.split('\n')
 
-    # dalle_prompt = translateGptPrompt(message)
-    dalle_prompt += ', vector illustration'
+def getImages(gpt_result):
+    dalle_prompt = convertToDallePromptFrom(gpt_result)
 
     # Dall-E 이미지 생성
     openai.api_key = os.getenv('GPT_API_KEY')
     response = openai.Image.create(
         prompt=dalle_prompt,
-        n=3,
+        n=1,    # 한 번에 생성할 이미지 개수 (test에는 1개로 진행합니다.)
         size="1024x1024"    # 256x256, 512x512, or 1024x1024 가능
     )
 
@@ -108,77 +127,29 @@ def getImages():
 
     print(image_url["imageUrl"])
 
-    return { "status": 200, "message": 'OK', "data": image_url }
+    return image_url["imageUrl"]
 
 
-# 한글 프롬프트를 영어 프롬프트로 번역, Dall-E 프롬프트에 맞게 가공하는 함수
-def translateGptPrompt(message):
-    url_for_deepl = 'https://api-free.deepl.com/v2/translate'
-    payload = {
-        'text': message,
-        'source_lang': 'KO',
-        'target_lang': 'EN'
-    }
-
-    #  todo: .env에 key 보관
-    headers = {
-        "content-type": "application/json",
-        "Authorization": os.getenv('DEEPL_API_KEY')
-    } 
-
-    response = requests.post(url_for_deepl, json=payload, headers=headers)
-    if response.status_code != 200:
-        return { "status": 557, "message": '번역 생성에 실패하였습니다.' }
-    data = response.json()
-
-    print(data)
-
+def convertToDallePromptFrom(gpt_result):
+    sentence_list = gpt_result.split('\n')
     idx = 0
-    translate_result = ''
-    line_length = len(data['translations'])
+    result = ''
+    line_length = len(sentence_list)
 
-    for one_line in data['translations']:
-        text = one_line['text']
-        content_start_idx = text.find(":") + 2
-        content = text[content_start_idx:]
-        # print(content)
+    for one_line in sentence_list:
+        content_start_idx = one_line.find(":") + 2
+        content = one_line[content_start_idx:]
         if idx == line_length - 1:
-            translate_result += content[:-1]
+            result += content[:-1]
         else:
-            translate_result += content + ", "
+            result += content + ", "
         idx = idx + 1
+    result += ', vector illustration'
 
-    return translate_result
+    return result
     
 
-def getImages():
-    # 문자열->문자열 배열에 넣어주는 처리
-    message = request.form['text']
-    message = message.split('\n')
-
-    # dalle_prompt = translateGptPrompt(message)
-    dalle_prompt += ', vector illustration'
-
-    # Dall-E 이미지 생성
-    openai.api_key = os.getenv('GPT_API_KEY')
-    response = openai.Image.create(
-        prompt=dalle_prompt,
-        n=3,
-        size="1024x1024"    # 256x256, 512x512, or 1024x1024 가능
-    )
-
-    image_url = {"imageUrl": []}
-    idx = 0
-    for list in response['data']:
-        image_url["imageUrl"].append(list['url'])
-        idx = idx + 1
-
-    print(image_url["imageUrl"])
-
-    return { "status": 200, "message": 'OK', "data": image_url }
-
-
-# 한글 프롬프트를 영어 프롬프트로 번역, Dall-E 프롬프트에 맞게 가공하는 함수
+# 한글 프롬프트를 영어 프롬프트로 번역, Dall-E 프롬프트에 맞게 가공하는 함수 (필요 시 사용)
 def translateGptPrompt(message):
     url_for_deepl = 'https://api-free.deepl.com/v2/translate'
     payload = {
@@ -187,7 +158,6 @@ def translateGptPrompt(message):
         'target_lang': 'EN'
     }
 
-    #  todo: .env에 key 보관
     headers = {
         "content-type": "application/json",
         "Authorization": os.getenv('DEEPL_API_KEY')
