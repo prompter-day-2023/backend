@@ -5,20 +5,25 @@ import openai
 import os
 from datetime import datetime
 from dotenv import load_dotenv
+import requests
+from .s3_bucket import s3
+
 load_dotenv()
 
 app = Flask(__name__)
 
 openai.api_key = os.getenv('GPT_API_KEY')
+bucket_name = os.getenv('BUCKET_NAME')
+bucket_url_prefix = os.getenv('BUCKET_URL_PREFIX')
 
 @app.route('/diary', methods=['POST'])
 def create_diary():
     contents = request.json.get('contents')
-    commend = f"Based on the diary contents written by the child, please write the diary contents and situation in English according to the format below. The purpose is to create an image by putting a prompt into the generative AI.\n\nEmotion:\nSubject:\nPicture color:\nOne line summary:\n\nThe diary contains the following.\n{contents}"
+    command = f'Based on the diary contents written by the child, please write the diary contents and situation in English according to the format below. The purpose is to create an image by putting a prompt into the generative AI.\n\nEmotion:\nSubject:\nPicture color:\nOne line summary:\n\nThe diary contains the following.\n{contents}'
 
     response = openai.Completion.create(
         model = 'text-davinci-003',   # openai에서 제공하는 모델 입력 (GPT-3.5)
-        prompt = commend,  # 원하는 실행어 입력
+        prompt = command,  # 원하는 실행어 입력
         temperature = 0,
         max_tokens = 300,   # 입력 + 출력 값으로 잡을 수 있는 max_tokens 값
         frequency_penalty = 0.0,
@@ -31,7 +36,25 @@ def create_diary():
 
     return { "response": response.choices[0].text.strip() }
 
+# S3 테스트 코드입니다. 향후 코드 작성 시 참고해주세요.
+@app.route('/s3-test')
+def upload_s3():
+    file = request.files['file']
+    file_name = file.filename.split('.')[0]
+    file_type = file.filename.split('.')[-1]
+
+    # 사진을 s3에 저장
+    # dalle 사진의 경우 result 롤더, 라인드로잉 사진의 경우 line 폴더 사용
+    s3.put_object(
+            Body = file,
+            Bucket = bucket_name,
+            Key = f'result/{file_name}.{file_type}',
+            ContentType = f'image/{file_type}'
+    )
+    return f'{bucket_url_prefix}/result/{file_name}.{file_type}'
+
 def create_line_picture(image):
+    # TODO: s3 url을 다운받도록 수정
     image_name = image.filename.split('.')[0]
     image_type = image.filename.split('.')[-1]
     created_at = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
@@ -59,8 +82,74 @@ def create_line_picture(image):
 
     cv2.imwrite(new_file_name, filled_image)
 
-    return { "status": 200, "message": 'OK' }
+    byte_image_to_s3 = cv2.imencode(image_type, filled_image)[1].tobytes()
 
+def getImages():
+    # 문자열->문자열 배열에 넣어주는 처리
+    message = request.form['text']
+    message = message.split('\n')
+
+    # dalle_prompt = translateGptPrompt(message)
+    dalle_prompt += ', vector illustration'
+
+    # Dall-E 이미지 생성
+    openai.api_key = os.getenv('GPT_API_KEY')
+    response = openai.Image.create(
+        prompt=dalle_prompt,
+        n=3,
+        size="1024x1024"    # 256x256, 512x512, or 1024x1024 가능
+    )
+
+    image_url = {"imageUrl": []}
+    idx = 0
+    for list in response['data']:
+        image_url["imageUrl"].append(list['url'])
+        idx = idx + 1
+
+    print(image_url["imageUrl"])
+
+    return { "status": 200, "message": 'OK', "data": image_url }
+
+
+# 한글 프롬프트를 영어 프롬프트로 번역, Dall-E 프롬프트에 맞게 가공하는 함수
+def translateGptPrompt(message):
+    url_for_deepl = 'https://api-free.deepl.com/v2/translate'
+    payload = {
+        'text': message,
+        'source_lang': 'KO',
+        'target_lang': 'EN'
+    }
+
+    #  todo: .env에 key 보관
+    headers = {
+        "content-type": "application/json",
+        "Authorization": os.getenv('DEEPL_API_KEY')
+    } 
+
+    response = requests.post(url_for_deepl, json=payload, headers=headers)
+    if response.status_code != 200:
+        return { "status": 557, "message": '번역 생성에 실패하였습니다.' }
+    data = response.json()
+
+    print(data)
+
+    idx = 0
+    translate_result = ''
+    line_length = len(data['translations'])
+
+    for one_line in data['translations']:
+        text = one_line['text']
+        content_start_idx = text.find(":") + 2
+        content = text[content_start_idx:]
+        # print(content)
+        if idx == line_length - 1:
+            translate_result += content[:-1]
+        else:
+            translate_result += content + ", "
+        idx = idx + 1
+
+    return translate_result
+    
 
 def getImages():
     # 문자열->문자열 배열에 넣어주는 처리
