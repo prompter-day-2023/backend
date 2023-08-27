@@ -57,6 +57,7 @@ def upload_s3():
 @app.route('/convert-test', methods=['POST'])
 def create_line_picture():
     image_url = request.json.get('imageUrl')
+    # TODO: 이미지 파일이 backend에 쌓이는 문제 발생 -> 성능 개선 필요
     download_image = wget.download(image_url)
     image_file = cv2.imread(download_image)
 
@@ -84,7 +85,15 @@ def create_line_picture():
 
     cv2.imwrite(new_file_name, filled_image)
 
-    return { "status": 200, "message": 'OK' }
+    data = cv2.imencode(f'.{image_type}', filled_image)[1].tobytes()
+
+    s3.put_object(
+            Body = data,
+            Bucket = bucket_name,
+            Key = f'line/{image_name}.{image_type}',
+            ContentType = f'image/{image_type}'
+    )
+    return f'{bucket_url_prefix}/line/{image_name}.{image_type}'
 
 
 if __name__ == '__main__':
