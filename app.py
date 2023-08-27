@@ -32,12 +32,10 @@ def create_diary():
     )
 
     gpt_result = response.choices[0].text.strip()
-    dalle_url_list = getImages(gpt_result)
-    print('img_url: ', dalle_url_list)
+    dalle_url_list = get_images_from_dalle(gpt_result)
 
     image_url_list = []
     for url in dalle_url_list:    
-        print(url)
         download_image = wget.download(url)
         image_file = cv2.imread(download_image)
 
@@ -45,7 +43,6 @@ def create_diary():
         image_full_name = split_url.split('?')[0]
         image_name = image_full_name.split('.')[0]
         image_type = image_full_name.split('.')[-1]
-        print(image_full_name)
 
         data = cv2.imencode(f'.{image_type}', image_file)[1].tobytes()
 
@@ -55,7 +52,7 @@ def create_diary():
             Key = f'result/{image_name}.{image_type}',
             ContentType = f'image/{image_type}'
         )   
-        print(f'{bucket_url_prefix}/result/{image_name}.{image_type}')
+
         image_url_list.append(f'{bucket_url_prefix}/result/{image_name}.{image_type}')
 
     
@@ -111,8 +108,8 @@ def create_line_picture(image):
     byte_image_to_s3 = cv2.imencode(image_type, filled_image)[1].tobytes()
 
 
-def getImages(gpt_result):
-    dalle_prompt = convertToDallePromptFrom(gpt_result)
+def get_images_from_dalle(gpt_result):
+    dalle_prompt = convert_to_Dalle_prompt_from(gpt_result)
 
     # Dall-E 이미지 생성
     openai.api_key = os.getenv('GPT_API_KEY')
@@ -128,12 +125,10 @@ def getImages(gpt_result):
         image_url["imageUrl"].append(list['url'])
         idx = idx + 1
 
-    print(image_url["imageUrl"])
-
     return image_url["imageUrl"]
 
 
-def convertToDallePromptFrom(gpt_result):
+def convert_to_Dalle_prompt_from(gpt_result):
     sentence_list = gpt_result.split('\n')
     idx = 0
     result = ''
@@ -153,7 +148,7 @@ def convertToDallePromptFrom(gpt_result):
     
 
 # 한글 프롬프트를 영어 프롬프트로 번역, Dall-E 프롬프트에 맞게 가공하는 함수 (필요 시 사용)
-def translateGptPrompt(message):
+def translate_gpt_prompt(message):
     url_for_deepl = 'https://api-free.deepl.com/v2/translate'
     payload = {
         'text': message,
@@ -171,8 +166,6 @@ def translateGptPrompt(message):
         return { "status": 557, "message": '번역 생성에 실패하였습니다.' }
     data = response.json()
 
-    print(data)
-
     idx = 0
     translate_result = ''
     line_length = len(data['translations'])
@@ -181,7 +174,7 @@ def translateGptPrompt(message):
         text = one_line['text']
         content_start_idx = text.find(":") + 2
         content = text[content_start_idx:]
-        # print(content)
+
         if idx == line_length - 1:
             translate_result += content[:-1]
         else:
