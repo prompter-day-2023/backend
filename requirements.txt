@@ -1,5 +1,7 @@
 flask==2.3.3
-opencv-python==4.8.0
+opencv-python==4.8.0.74
 openai==0.27.9
 python-dotenv
 boto3
+requests
+wget
