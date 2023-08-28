@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from flask import Flask, jsonify, request
 from .s3_bucket import s3
 from .util import get_images_from_dalle, convert_to_Dalle_prompt_from, translate_gpt_prompt
+from flask_cors import CORS
 import cv2
 import numpy as np
 import openai
@@ -13,6 +14,7 @@ import wget
 load_dotenv()
 
 app = Flask(__name__)
+CORS(app)
 
 openai.api_key = os.getenv('GPT_API_KEY')
 bucket_name = os.getenv('BUCKET_NAME')
@@ -27,7 +29,7 @@ def create_diary():
         model = 'text-davinci-003',   # openai에서 제공하는 모델 입력 (GPT-3.5)
         prompt = command,  # 원하는 실행어 입력
         temperature = 0,
-        max_tokens = 300,   # 입력 + 출력 값으로 잡을 수 있는 max_tokens 값
+        max_tokens = 1500,   # 입력 + 출력 값으로 잡을 수 있는 max_tokens 값
         frequency_penalty = 0.0,
         presence_penalty = 0.0
     )
