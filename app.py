@@ -39,8 +39,9 @@ def create_diary():
 
     image_url_list = []
     for url in dalle_url_list:    
-        download_image = wget.download(url)
-        image_file = cv2.imread(download_image)
+        download_image = requests.get(url)
+        image_data = np.frombuffer(download_image.content, np.uint8)
+        image_file = cv2.imdecode(image_data, cv2.IMREAD_COLOR)
 
         split_url = url.split('/')[6]
         image_full_name = split_url.split('?')[0]
@@ -63,9 +64,9 @@ def create_diary():
 @app.route('/line-drawing', methods=['POST'])
 def create_line_picture():
     image_url = request.json.get('imageUrl')
-    # TODO: 이미지 파일이 backend에 쌓이는 문제 발생 -> 성능 개선 필요
-    download_image = wget.download(image_url)
-    image_file = cv2.imread(download_image)
+    download_image = requests.get(image_url)
+    image_data = np.frombuffer(download_image.content, np.uint8)
+    image = cv2.imdecode(image_data, cv2.IMREAD_COLOR)
 
     # 파일명 생성하기
     split_url = image_url.split('/')[-1]
@@ -74,7 +75,7 @@ def create_line_picture():
     created_at = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
     new_file_name = f"{image_name}-{created_at}.{image_type}"
 
-    gray_img = cv2.cvtColor(image_file, cv2.COLOR_BGR2GRAY)
+    gray_img = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     edged = cv2.Canny(gray_img, 100, 250)
 
     # 엣지 확장을 위한 커널 생성
@@ -86,7 +87,7 @@ def create_line_picture():
     edge_color = (0, 0, 0)  # 검은색 엣지
 
     # 배경 부분을 원하는 배경색으로 채우기
-    filled_image = np.full_like(image_file, background_color)
+    filled_image = np.full_like(image, background_color)
     filled_image[dilated != 0] = edge_color
 
     data = cv2.imencode(f'.{image_type}', filled_image)[1].tobytes()
