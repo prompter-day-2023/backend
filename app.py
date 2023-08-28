@@ -22,8 +22,15 @@ bucket_url_prefix = os.getenv('BUCKET_URL_PREFIX')
 
 @app.route('/diary', methods=['POST'])
 def create_diary():
+    title = request.json.get('title')
     contents = request.json.get('contents')
-    command = f'Based on the diary contents written by the child, please write the diary contents and situation in English according to the format below. The purpose is to create an image by putting a prompt into the generative AI.\n\nEmotion:\nCharacters:\nPicture color:\nOne line summary:\n\nThe diary contains the following.\n{contents}'
+
+    # 일기 내용 -> 영어로 번역
+    diary_trans_input = "제목: " + title + "\n" + contents
+    diary_trans_result = translate_message('KO', 'EN', diary_trans_input)
+    contents_eng = convert_trans_result_to_prompt(diary_trans_result)
+
+    command = f'Based on the diary contents written by the child, please write the diary contents and situation in English according to the format below. The purpose is to create an image by putting a prompt into the generative AI.\n\nEmotion:\nCharacters:\nPicture color:\nOne line summary:\n\nThe diary contains the following.\n{contents_eng}'
 
     response = openai.Completion.create(
         model = 'text-davinci-003',   # openai에서 제공하는 모델 입력 (GPT-3.5)
@@ -35,7 +42,15 @@ def create_diary():
     )
 
     gpt_result = response.choices[0].text.strip()
-    dalle_url_list = get_images_from_dalle(gpt_result)
+
+    # gpt 영어 결과 -> Dalle 프롬프트 가공
+    dalle_prompt = convert_to_Dalle_prompt_from(gpt_result)
+
+    # # # Dalle 프롬프트 -> 조회할 요약된 키워드로 번역
+    dalle_prompt_trans_result = translate_message('EN', 'KO', dalle_prompt)
+    keyword_list = convert_trans_result_to_keyword_list(dalle_prompt_trans_result)
+    # # Dalle 이미지 생성
+    dalle_url_list = get_images_from_dalle(dalle_prompt)
 
     image_url_list = []
     for url in dalle_url_list:    
@@ -59,7 +74,9 @@ def create_diary():
 
         image_url_list.append(f'{bucket_url_prefix}/result/{image_name}.{image_type}')
 
-    return { 'response': image_url_list }
+    data = {"image_url": image_url_list, "keywords": keyword_list}
+    return {"data": data, "code": 200, "message": "이미지 생성에 성공하였습니다." }
+
 
 @app.route('/line-drawing', methods=['POST'])
 def create_line_picture():
