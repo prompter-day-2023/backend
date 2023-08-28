@@ -2,7 +2,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request
 from .s3_bucket import s3
-from .util import get_images_from_dalle, convert_to_Dalle_prompt_from, translate_gpt_prompt
+from .util import get_images_from_dalle, convert_to_Dalle_prompt_from, translate_message, convert_trans_result_to_prompt, convert_trans_result_to_keyword_list
 from flask_cors import CORS
 import cv2
 import numpy as np
@@ -49,7 +49,12 @@ def create_diary():
     # # # Dalle 프롬프트 -> 조회할 요약된 키워드로 번역
     dalle_prompt_trans_result = translate_message('EN', 'KO', dalle_prompt)
     keyword_list = convert_trans_result_to_keyword_list(dalle_prompt_trans_result)
+
+    # 한줄 요약 문장은 키워드 리스트에서 제외
+    keyword_list.pop()
+
     # # Dalle 이미지 생성
+    dalle_prompt += ', vector illustration'
     dalle_url_list = get_images_from_dalle(dalle_prompt)
 
     image_url_list = []

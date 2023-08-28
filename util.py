@@ -40,8 +40,6 @@ def convert_to_Dalle_prompt_from(gpt_result):
             result += content + ", "
         idx = idx + 1
 
-    result += ', vector illustration'
-
     return result
 
 # 한글을 영어로 번역하는 함수
