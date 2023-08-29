@@ -16,4 +16,5 @@ COPY . .
 
 EXPOSE 5123
 
-CMD ["gunicorn", "--workers", "4", "--bind", "0.0.0.0:5123", "app:app"]
+# gunicorn -k gevent -w 4 app:app
+CMD ["gunicorn", "-k", "gevent", "-w", "4", "--bind", "0.0.0.0:5123", "app:app"]

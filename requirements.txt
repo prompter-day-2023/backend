@@ -7,3 +7,4 @@ requests
 wget
 flask_cors
 gunicorn
+gevent
