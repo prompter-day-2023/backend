@@ -1,8 +1,8 @@
 from datetime import datetime
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request
-from .s3_bucket import s3
-from .util import get_images_from_dalle, convert_to_Dalle_prompt_from, translate_gpt_prompt
+import s3_bucket
+import util
 from flask_cors import CORS
 import cv2
 import numpy as np
@@ -35,7 +35,7 @@ def create_diary():
     )
 
     gpt_result = response.choices[0].text.strip()
-    dalle_url_list = get_images_from_dalle(gpt_result)
+    dalle_url_list = util.get_images_from_dalle(gpt_result)
 
     image_url_list = []
     for url in dalle_url_list:    
@@ -50,7 +50,7 @@ def create_diary():
 
         data = cv2.imencode(f'.{image_type}', image_file)[1].tobytes()
 
-        s3.put_object(
+        s3_bucket.s3.put_object(
             Body = data,
             Bucket = bucket_name,
             Key = f'result/{image_name}.{image_type}',
@@ -92,7 +92,7 @@ def create_line_picture():
 
     data = cv2.imencode(f'.{image_type}', filled_image)[1].tobytes()
 
-    s3.put_object(
+    s3_bucket.s3.put_object(
             Body = data,
             Bucket = bucket_name,
             Key = f'line/{image_name}.{image_type}',
