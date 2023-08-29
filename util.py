@@ -70,22 +70,14 @@ def translate_message(src_lang, tartget_lang, message):
 def convert_trans_result_to_prompt(data_list):
     idx = 0
     translate_result = ''
-    # line_length = len(data_list)
 
     for one_line in data_list:
         text = one_line['text']
         translate_result += text + "\n"
-        # if idx == line_length - 1:
-        #     translate_result += content[:-1]
-        # else:
-        #     translate_result += content + ", "
         idx = idx + 1
     return translate_result
 
 def convert_trans_result_to_keyword_list(data_list):
-
-    # data_str = data_str.split(",").strip()
-    # print(data_str)
     keyword_list = []
     text = data_list[0]['text']
     keyword_list = text.split(", ")
