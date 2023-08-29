@@ -123,4 +123,4 @@ def create_line_picture():
     return { 'response': f'{bucket_url_prefix}/line/{image_name}.{image_type}' }
     
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5123)
