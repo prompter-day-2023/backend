@@ -10,6 +10,7 @@ import openai
 import os
 import requests
 import wget
+from botocore.exceptions import ClientError
 
 load_dotenv()
 
@@ -18,7 +19,7 @@ CORS(app)
 
 openai.api_key = os.getenv('GPT_API_KEY')
 bucket_name = os.getenv('BUCKET_NAME')
-bucket_url_prefix = os.getenv('BUCKET_URL_PREFIX')
+expire_time = os.getenv('PICTURE_EXPIRE_TIME')
 
 @app.route('/diary', methods=['POST'])
 def create_diary():
@@ -26,11 +27,11 @@ def create_diary():
     contents = request.json.get('contents')
 
     # 일기 내용 -> 영어로 번역
-    diary_trans_input = "제목: " + title + "\n" + contents
+    diary_trans_input = f'제목: {title}\n{contents}'
     diary_trans_result = util.translate_message('KO', 'EN', diary_trans_input)
     contents_eng = util.convert_trans_result_to_prompt(diary_trans_result)
 
-    command = f'Based on the diary contents written by the child, please write the diary contents and situation in English according to the format below. The purpose is to create an image by putting a prompt into the generative AI.\n\nEmotion:\nCharacters:\nPicture color:\nOne line summary:\n\nThe diary contains the following.\n{contents_eng}'
+    command = f'Based on the diary contents written by the user, summarize the diary contents and situation with keywords. The contents of the diary are as follows.\n{contents_eng}'
 
     response = openai.Completion.create(
         model = 'text-davinci-003',   # openai에서 제공하는 모델 입력 (GPT-3.5)
@@ -58,6 +59,7 @@ def create_diary():
     dalle_url_list = util.get_images_from_dalle(dalle_prompt)
 
     image_url_list = []
+
     for url in dalle_url_list:    
         download_image = requests.get(url)
         image_data = np.frombuffer(download_image.content, np.uint8)
@@ -75,12 +77,14 @@ def create_diary():
             Bucket = bucket_name,
             Key = f'result/{image_name}.{image_type}',
             ContentType = f'image/{image_type}'
-        )   
+        )
 
-        image_url_list.append(f'{bucket_url_prefix}/result/{image_name}.{image_type}')
+        get_url = s3_bucket.s3.generate_presigned_url('get_object', Params = { 'Bucket': bucket_name, 'Key': f'result/{image_name}.{image_type}' }, ExpiresIn = expire_time)
+        image_url_list.append(get_url)
+        
+    data = { 'image_url': image_url_list, 'keywords': keyword_list }
 
-    data = {"image_url": image_url_list, "keywords": keyword_list}
-    return {"data": data, "code": 200, "message": "이미지 생성에 성공하였습니다." }
+    return { 'data': data, 'code': 200, 'message': '이미지 생성에 성공하였습니다.' }
 
 
 @app.route('/line-drawing', methods=['POST'])
@@ -91,11 +95,9 @@ def create_line_picture():
     image = cv2.imdecode(image_data, cv2.IMREAD_COLOR)
 
     # 파일명 생성하기
-    split_url = image_url.split('/')[-1]
+    split_url = image_url.split('?')[0].split('/')[-1]
     image_name = split_url.split('.')[0]
     image_type = split_url.split('.')[-1]
-    created_at = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-    new_file_name = f"{image_name}-{created_at}.{image_type}"
 
     gray_img = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     edged = cv2.Canny(gray_img, 100, 250)
@@ -120,7 +122,10 @@ def create_line_picture():
             Key = f'line/{image_name}.{image_type}',
             ContentType = f'image/{image_type}'
     )
-    return { 'response': f'{bucket_url_prefix}/line/{image_name}.{image_type}' }
+
+    get_url = s3_bucket.s3.generate_presigned_url('get_object', Params = { 'Bucket': bucket_name, 'Key': f'line/{image_name}.{image_type}' }, ExpiresIn = expire_time)
+
+    return { 'data': get_url, 'code': 200, 'message': '이미지 생성에 성공하였습니다.' }
     
 if __name__ == '__main__':
     app.run(debug=True, port=5123)

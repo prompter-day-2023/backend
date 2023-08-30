@@ -9,7 +9,6 @@ openai.api_key = os.getenv('GPT_API_KEY')
 deepl_api_key = os.getenv('DEEPL_API_KEY')
 
 def get_images_from_dalle(dalle_prompt):
-
     # Dall-E 이미지 생성
     response = openai.Image.create(
         prompt = dalle_prompt,
@@ -32,7 +31,7 @@ def convert_to_Dalle_prompt_from(gpt_result):
     line_length = len(sentence_list)
 
     for one_line in sentence_list:
-        content_start_idx = one_line.find(":") + 2
+        content_start_idx = one_line.find(':') + 2
         content = one_line[content_start_idx:]
         if idx == line_length - 1:
             result += content[:-1]
@@ -65,16 +64,15 @@ def translate_message(src_lang, tartget_lang, message):
 
     return data['translations']
 
-    
-
 def convert_trans_result_to_prompt(data_list):
     idx = 0
     translate_result = ''
 
     for one_line in data_list:
         text = one_line['text']
-        translate_result += text + "\n"
+        translate_result += text + '\n'
         idx = idx + 1
+
     return translate_result
 
 def convert_trans_result_to_keyword_list(data_list):
