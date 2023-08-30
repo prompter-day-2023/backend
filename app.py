@@ -19,6 +19,7 @@ CORS(app)
 
 openai.api_key = os.getenv('GPT_API_KEY')
 bucket_name = os.getenv('BUCKET_NAME')
+expire_time = os.getenv('PICTURE_EXPIRE_TIME')
 
 @app.route('/diary', methods=['POST'])
 def create_diary():
@@ -78,7 +79,7 @@ def create_diary():
             ContentType = f'image/{image_type}'
         )
 
-        get_url = s3_bucket.s3.generate_presigned_url('get_object', Params = { 'Bucket': bucket_name, 'Key': f'result/{image_name}.{image_type}' }, ExpiresIn = 3600)
+        get_url = s3_bucket.s3.generate_presigned_url('get_object', Params = { 'Bucket': bucket_name, 'Key': f'result/{image_name}.{image_type}' }, ExpiresIn = expire_time)
         image_url_list.append(get_url)
         
     data = { 'image_url': image_url_list, 'keywords': keyword_list }
@@ -122,9 +123,9 @@ def create_line_picture():
             ContentType = f'image/{image_type}'
     )
 
-    get_url = s3_bucket.s3.generate_presigned_url('get_object', Params = { 'Bucket': bucket_name, 'Key': f'line/{image_name}.{image_type}' }, ExpiresIn = 3600)
+    get_url = s3_bucket.s3.generate_presigned_url('get_object', Params = { 'Bucket': bucket_name, 'Key': f'line/{image_name}.{image_type}' }, ExpiresIn = expire_time)
 
-    return { 'response': get_url }
+    return { 'data': get_url, 'code': 200, 'message': '이미지 생성에 성공하였습니다.' }
     
 if __name__ == '__main__':
     app.run(debug=True, port=5123)
