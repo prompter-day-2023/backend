@@ -26,7 +26,7 @@ def create_diary():
     contents = request.json.get('contents')
 
     # 일기 내용 -> 영어로 번역
-    diary_trans_input = "제목: " + title + "\n" + contents
+    diary_trans_input = f'제목: {title}\n{contents}'
     diary_trans_result = util.translate_message('KO', 'EN', diary_trans_input)
     contents_eng = util.convert_trans_result_to_prompt(diary_trans_result)
 
@@ -58,6 +58,7 @@ def create_diary():
     dalle_url_list = util.get_images_from_dalle(dalle_prompt)
 
     image_url_list = []
+
     for url in dalle_url_list:    
         download_image = requests.get(url)
         image_data = np.frombuffer(download_image.content, np.uint8)
@@ -77,12 +78,12 @@ def create_diary():
             ContentType = f'image/{image_type}'
         )
 
-        get_url = s3_bucket.s3.generate_presigned_url('get_object', Params={'Bucket': bucket_name, 'Key': f'result/{image_name}.{image_type}'}, ExpiresIn=3600)
+        get_url = s3_bucket.s3.generate_presigned_url('get_object', Params = { 'Bucket': bucket_name, 'Key': f'result/{image_name}.{image_type}' }, ExpiresIn = 3600)
         image_url_list.append(get_url)
         
-    data = {"image_url": image_url_list, "keywords": keyword_list}
+    data = { 'image_url': image_url_list, 'keywords': keyword_list }
 
-    return {"data": data, "code": 200, "message": "이미지 생성에 성공하였습니다." }
+    return { 'data': data, 'code': 200, 'message': '이미지 생성에 성공하였습니다.' }
 
 
 @app.route('/line-drawing', methods=['POST'])
@@ -121,7 +122,7 @@ def create_line_picture():
             ContentType = f'image/{image_type}'
     )
 
-    get_url = s3_bucket.s3.generate_presigned_url('get_object', Params={'Bucket': bucket_name, 'Key': f'line/{image_name}.{image_type}'}, ExpiresIn=3600)
+    get_url = s3_bucket.s3.generate_presigned_url('get_object', Params = { 'Bucket': bucket_name, 'Key': f'line/{image_name}.{image_type}' }, ExpiresIn = 3600)
 
     return { 'response': get_url }
     
