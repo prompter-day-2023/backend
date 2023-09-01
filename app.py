@@ -28,8 +28,15 @@ def create_diary():
 
     # 일기 내용 -> 영어로 번역
     diary_trans_input = f'제목: {title}\n{contents}'
-    diary_trans_result = util.translate_message('KO', 'EN', diary_trans_input)
-    contents_eng = util.convert_trans_result_to_prompt(diary_trans_result)
+    msg_result_code, diary_trans_result = util.translate_message('KO', 'EN', diary_trans_input)
+    if msg_result_code != 200:
+        return {'code': 500, 'message': '오류가 발생했습니다. 다시 시도해주세요.' }
+
+
+    eng_result_code ,contents_eng = util.convert_trans_result_to_prompt(diary_trans_result)
+    if eng_result_code != 200:
+        return {'code': 500, 'message': '오류가 발생했습니다. 다시 시도해주세요.' }
+
 
     command = f"Based on the diary contents written by an adult, please write the diary contents and situation in English according to the format below. The purpose is to create an image by putting a prompt into the generative AI. Be sure to include a 'one-line summary' and 'Picture Context' has no more than 10 words of  context.\nEmotion:\nCharacters:\nPicture color:\nPicture Context:\nOne line summary in 10 words:The diary contains the following.{contents_eng}"
 
@@ -43,21 +50,37 @@ def create_diary():
     )
 
     gpt_result = response.choices[0].text.strip()
+    print(gpt_result)
 
     # gpt 영어 결과 -> Dalle 프롬프트 가공
-    dalle_prompt = util.convert_to_Dalle_prompt_from(gpt_result)
+    convert_result_code = dalle_prompt = util.convert_to_Dalle_prompt_from(gpt_result)
+    if convert_result_code != 200:
+        return {'code': 500, 'message': '오류가 발생했습니다. 다시 시도해주세요.' }
+    
+    print(dalle_prompt)
 
-    # # # Dalle 프롬프트 -> 조회할 요약된 키워드로 번역
-    dalle_prompt_trans_result = util.translate_message('EN', 'KO', dalle_prompt)
-    keyword_list = util.convert_trans_result_to_keyword_list(dalle_prompt_trans_result)
+    # Dalle 프롬프트 -> 조회할 요약된 키워드로 번역
+    tras_result_code, dalle_prompt_trans_result = util.translate_message('EN', 'KO', dalle_prompt)
+    if tras_result_code != 200:
+        return {'code': 500, 'message': '오류가 발생했습니다. 다시 시도해주세요.' }
+    
+    keyword_result_code, keyword_list = util.convert_trans_result_to_keyword_list(dalle_prompt_trans_result)
+    if keyword_result_code != 200:
+        return {'code': 500, 'message': '오류가 발생했습니다. 다시 시도해주세요.' }
+    
+    print(dalle_prompt_trans_result)
+    print(keyword_list)
 
     # 한줄 요약 문장은 키워드 리스트에서 제외
     keyword_list.pop()
 
     # # Dalle 이미지 생성
     dalle_prompt += ', simple vector illustration'
-    dalle_url_list = util.get_images_from_dalle(dalle_prompt)
+    dalle_result_code, dalle_url_list = util.get_images_from_dalle(dalle_prompt)
 
+    if dalle_result_code != 200:
+        return {'code': 500, 'message': '오류가 발생했습니다. 다시 시도해주세요.' }
+    
     image_url_list = []
 
     for url in dalle_url_list:    
@@ -129,6 +152,7 @@ def create_line_picture():
     get_url = s3_bucket.s3.generate_presigned_url('get_object', Params = { 'Bucket': bucket_name, 'Key': f'line/{image_name}.{image_type}' }, ExpiresIn = expire_time)
 
     return { 'data': get_url, 'code': 200, 'message': '이미지 생성에 성공하였습니다.' }
-    
+
+
 if __name__ == '__main__':
     app.run(debug=True, port=5123)
