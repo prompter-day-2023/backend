@@ -100,11 +100,14 @@ def create_line_picture():
     image_type = split_url.split('.')[-1]
 
     gray_img = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    edged = cv2.Canny(gray_img, 30, 30)
+
+    sobel = cv2.Sobel(gray_img, cv2.CV_8U, 1, 0, 3)
+    laplacian = cv2.Laplacian(gray_img, cv2.CV_8U, ksize=3)
+    canny = cv2.Canny(image, 30, 40)
 
     # 엣지 확장을 위한 커널 생성
     kernel = np.ones((2, 2), np.uint8)
-    dilated = cv2.dilate(edged, kernel, iterations=1)
+    dilated = cv2.dilate(canny, kernel, iterations=1)
 
     # 배경색과 엣지색을 지정
     background_color = (255, 255, 255)  # 흰색 배경
