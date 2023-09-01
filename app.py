@@ -100,7 +100,7 @@ def create_line_picture():
     image_type = split_url.split('.')[-1]
 
     gray_img = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    edged = cv2.Canny(gray_img, 100, 250)
+    edged = cv2.Canny(gray_img, 30, 30)
 
     # 엣지 확장을 위한 커널 생성
     kernel = np.ones((2, 2), np.uint8)
