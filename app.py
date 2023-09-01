@@ -31,7 +31,7 @@ def create_diary():
     diary_trans_result = util.translate_message('KO', 'EN', diary_trans_input)
     contents_eng = util.convert_trans_result_to_prompt(diary_trans_result)
 
-    command = f"Based on the diary contents written by the child, please write the diary contents and situation in English according to the format below. The purpose is to create an image by putting a prompt into the generative AI. Be sure to include a 'one-line summary' and 'Picture Context' has no more than 10 words of  context.\nEmotion:\nCharacters:\nPicture color:\nPicture Context:\nOne line summary in 10 words:The diary contains the following.{contents_eng}"
+    command = f"Based on the diary contents written by an adult, please write the diary contents and situation in English according to the format below. The purpose is to create an image by putting a prompt into the generative AI. Be sure to include a 'one-line summary' and 'Picture Context' has no more than 10 words of  context.\nEmotion:\nCharacters:\nPicture color:\nPicture Context:\nOne line summary in 10 words:The diary contains the following.{contents_eng}"
 
     response = openai.Completion.create(
         model = 'text-davinci-003',   # openai에서 제공하는 모델 입력 (GPT-3.5)
