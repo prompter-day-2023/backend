@@ -53,7 +53,6 @@ def create_diary():
 
     # gpt 영어 결과 -> Dalle 프롬프트 가공
     convert_result_code, dalle_prompt = util.convert_to_Dalle_prompt_from(gpt_result)
-    print(dalle_prompt)
 
     if convert_result_code != 200:
         return {'code': 500, 'message': '오류가 발생했습니다. 다시 시도해주세요.' }
@@ -65,10 +64,10 @@ def create_diary():
         return {'code': 500, 'message': '오류가 발생했습니다. 다시 시도해주세요.' }
     
     keyword_result_code, keyword_list = util.convert_trans_result_to_keyword_list(dalle_prompt_trans_result)
+    
     if keyword_result_code != 200:
         return {'code': 500, 'message': '오류가 발생했습니다. 다시 시도해주세요.' }
     
-
     # 한줄 요약 문장은 키워드 리스트에서 제외
     keyword_list.pop()
 

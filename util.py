@@ -13,7 +13,7 @@ def get_images_from_dalle(dalle_prompt):
     # Dall-E 이미지 생성
     response = openai.Image.create(
         prompt = dalle_prompt,
-        n = 1,    # 한 번에 생성할 이미지 개수 (test에는 1개로 진행합니다.)
+        n = 4,    # 한 번에 생성할 이미지 개수 (test에는 1개로 진행합니다.)
         size = '1024x1024'    # 256x256, 512x512, or 1024x1024 가능
     )
 
@@ -40,15 +40,12 @@ def convert_to_Dalle_prompt_from(gpt_result):
     line_length = len(sentence_list)
     
     if line_length == 0:
-        return 500, None
+        return { 'code': 400, 'message': '프롬프트 결과물이 없습니다.' }
     
     for one_line in sentence_list:
         content_start_idx = one_line.find(':') + 2
         header = one_line[:content_start_idx-2]
         content = one_line[content_start_idx:]
-
-        if header != category_list[idx]:
-            return 500, None
 
         if idx == line_length - 1:
             result += content[:-1]
