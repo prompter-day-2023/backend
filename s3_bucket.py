@@ -18,7 +18,7 @@ def s3_connection():
         )
     except Exception as error:
         print(error)
-        return { 'error': error }
+        return { 'code': 500, 'message': '오류가 발생했습니다. 다시 시도해주세요.' }
     else:
         return bucket
 

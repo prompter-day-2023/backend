@@ -30,7 +30,6 @@ def get_images_from_dalle(dalle_prompt):
 
     return 200, image_url['imageUrl']
 
-
 def convert_to_Dalle_prompt_from(gpt_result):
     idx = 0
     result = ''
@@ -55,7 +54,6 @@ def convert_to_Dalle_prompt_from(gpt_result):
 
     return 200, result
 
-
 # 한글을 영어로 번역하는 함수
 def translate_message(src_lang, tartget_lang, message):
     message_arr = []
@@ -68,13 +66,14 @@ def translate_message(src_lang, tartget_lang, message):
     }
     headers = {
         'content-type': 'application/json',
-        'Authorization': os.getenv('DEEPL_API_KEY')
+        'Authorization': deepl_api_key
     } 
 
     response = requests.post(url_for_deepl, json = payload, headers = headers)
 
     if response.status_code != 200:
         return 500, None
+    
     data = response.json()
 
     return 200, data['translations']
@@ -83,9 +82,9 @@ def convert_trans_result_to_prompt(data_list):
     idx = 0
     translate_result = ''
 
-    print('d', data_list)
     if len(data_list) == 0:
         return 500, None
+
     for one_line in data_list:
         text = one_line['text']
         translate_result += text + '\n'
@@ -99,7 +98,7 @@ def convert_trans_result_to_keyword_list(data_list):
 
     if text is None:
         return 500, None
+
     keyword_list = text.split(", ")
 
     return 200, keyword_list
-

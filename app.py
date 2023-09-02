@@ -1,16 +1,15 @@
 from datetime import datetime
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 import s3_bucket
 import util
-from flask_cors import CORS
 import cv2
 import numpy as np
 import openai
 import os
 import requests
 import wget
-from botocore.exceptions import ClientError
 
 load_dotenv()
 
@@ -29,16 +28,16 @@ def create_diary():
     # 일기 내용 -> 영어로 번역
     diary_trans_input = f'제목: {title}\n{contents}'
     msg_result_code, diary_trans_result = util.translate_message('KO', 'EN', diary_trans_input)
+    
     if msg_result_code != 200:
-        return {'code': 500, 'message': '오류가 발생했습니다. 다시 시도해주세요.' }
+        return { 'code': 500, 'message': '일기 내용 번역 중 오류가 발생했습니다. 다시 시도해주세요.' }
 
-
-    eng_result_code ,contents_eng = util.convert_trans_result_to_prompt(diary_trans_result)
+    eng_result_code, contents_eng = util.convert_trans_result_to_prompt(diary_trans_result)
+    
     if eng_result_code != 200:
-        return {'code': 500, 'message': '오류가 발생했습니다. 다시 시도해주세요.' }
+        return { 'code': 500, 'message': '프롬프트 생성 중 오류가 발생했습니다. 다시 시도해주세요.' }
 
-
-    command = f"Based on the diary contents written by an adult, please write the diary contents and situation in English according to the format below. The purpose is to create an image by putting a prompt into the generative AI. Be sure to include a 'one-line summary' and 'Picture Context' has no more than 10 words of  context.\nEmotion:\nCharacters:\nPicture color:\nPicture Context:\nOne line summary in 10 words:The diary contains the following.{contents_eng}"
+    command = f"Based on the diary contents written by an adult, please write the diary contents and situation in English according to the format below. The purpose is to create an image by putting a prompt into the generative AI. Be sure to include a 'one-line summary' and 'Picture Context' has no more than 10 words of context.\nEmotion:\nCharacters:\nPicture color:\nPicture Context:\nOne line summary in 10 words:The diary contains the following.{contents_eng}"
 
     response = openai.Completion.create(
         model = 'text-davinci-003',   # openai에서 제공하는 모델 입력 (GPT-3.5)
@@ -55,18 +54,18 @@ def create_diary():
     convert_result_code, dalle_prompt = util.convert_to_Dalle_prompt_from(gpt_result)
 
     if convert_result_code != 200:
-        return {'code': 500, 'message': '오류가 발생했습니다. 다시 시도해주세요.' }
+        return { 'code': 500, 'message': '프롬프트 가공 중 오류가 발생했습니다. 다시 시도해주세요.' }
 
     # Dalle 프롬프트 -> 조회할 요약된 키워드로 번역
     tras_result_code, dalle_prompt_trans_result = util.translate_message('EN', 'KO', dalle_prompt)
 
     if tras_result_code != 200:
-        return {'code': 500, 'message': '오류가 발생했습니다. 다시 시도해주세요.' }
+        return { 'code': 500, 'message': '번역 중 오류가 발생했습니다. 다시 시도해주세요.' }
     
     keyword_result_code, keyword_list = util.convert_trans_result_to_keyword_list(dalle_prompt_trans_result)
     
     if keyword_result_code != 200:
-        return {'code': 500, 'message': '오류가 발생했습니다. 다시 시도해주세요.' }
+        return { 'code': 500, 'message': '키워드 생성 중 오류가 발생했습니다. 다시 시도해주세요.' }
     
     # 한줄 요약 문장은 키워드 리스트에서 제외
     keyword_list.pop()
@@ -76,7 +75,7 @@ def create_diary():
     dalle_result_code, dalle_url_list = util.get_images_from_dalle(dalle_prompt)
 
     if dalle_result_code != 200:
-        return {'code': 500, 'message': '오류가 발생했습니다. 다시 시도해주세요.' }
+        return { 'code': 500, 'message': '이미지 생성 중 오류가 발생했습니다. 다시 시도해주세요.' }
     
     image_url_list = []
 
@@ -104,7 +103,7 @@ def create_diary():
         
     data = { 'image_url': image_url_list, 'keywords': keyword_list }
 
-    return { 'data': data, 'code': 200, 'message': '이미지 생성에 성공하였습니다.' }
+    return { 'code': 200, 'message': '이미지 생성에 성공하였습니다.', 'data': data }
 
 
 @app.route('/line-drawing', methods=['POST'])
@@ -140,15 +139,15 @@ def create_line_picture():
     data = cv2.imencode(f'.{image_type}', filled_image)[1].tobytes()
 
     s3_bucket.s3.put_object(
-            Body = data,
-            Bucket = bucket_name,
-            Key = f'line/{image_name}.{image_type}',
-            ContentType = f'image/{image_type}'
+        Body = data,
+        Bucket = bucket_name,
+        Key = f'line/{image_name}.{image_type}',
+        ContentType = f'image/{image_type}'
     )
 
     get_url = s3_bucket.s3.generate_presigned_url('get_object', Params = { 'Bucket': bucket_name, 'Key': f'line/{image_name}.{image_type}' }, ExpiresIn = expire_time)
 
-    return { 'data': get_url, 'code': 200, 'message': '이미지 생성에 성공하였습니다.' }
+    return { 'code': 200, 'message': '이미지 생성에 성공하였습니다.', 'data': get_url }
 
 
 if __name__ == '__main__':
