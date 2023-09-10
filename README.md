@@ -1,6 +1,4 @@
-# backend
-당신의 꿈을 그려드립니다. '꾸미' Server ☁️
-
+## 꾸미 Server Docker 동작 방법 ✨
 1. Docker build
    
    ```
@@ -10,5 +8,5 @@
 2. Docker run
    
     ```
-      docker run -it -p 5000:5000 --rm --name ggoomi-backend ggoomi-backend
+      docker run -it -p 5123:5123 --rm --name ggoomi-backend ggoomi-backend
     ```
