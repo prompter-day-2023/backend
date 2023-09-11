@@ -102,3 +102,11 @@ def convert_trans_result_to_keyword_list(data_list):
     keyword_list = text.split(", ")
 
     return 200, keyword_list
+
+def slack_alert_bot(message):
+    url = os.getenv('SLACK_ALERT_BOT')
+    text = message
+
+    payload = { 'text': message }
+
+    requests.post(url, json=payload)
